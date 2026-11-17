@@ -1,0 +1,75 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+
+# ===== 运行日志 / 调试产物（不纳入版本管理）=====
+*.log
+*.lock
+api/_watch.lock
+
+# 调试截图 / 帧缓存 / 临时位图
+api/_*.png
+api/_*.bmp
+api/_*.jpg
+api/_*.jpeg
+api/_probe*.*
+api/_fail_*.png
+api/_desync_*.png
+api/_after_*.png
+api/_now*.png
+api/_scan*.png
+api/_phone*.png
+api/_shot*.png
+api/_crop*.png
+api/_rows_*.png
+api/_btn*.png
+api/_sheet.png
+api/_match.png
+api/_smoke*.png
+api/_q1.png
+api/_q2.png
+api/_q3.png
+api/_m2.png
+api/_e1.png
+api/_f1.png
+api/_g2.png
+api/_g3*.png
+api/_h1.png
+api/_d3.png
+api/_b1.bin
+api/_b2.bin
+api/_c1.bin
+api/_c2.bin
+api/_d1.bin
+api/_d2.bin
+api/_d3.bin
+api/_e1.bin
+api/_f1.bin
+api/_g1.bin
+api/_g2.bin
+api/_g3.bin
+api/_h1.bin
+api/_raw.bin
+
+# 临时扫描结果
+api/_scan.json
+
+# 旧版源码打包（不入库，源码以当前目录为准）
+api/*src_*.zip
+api/*.zip
+
+# ===== 第三方应用安装包：走 GitHub Release 附件，不进 Git =====
+*.apk
+
+# ===== 便携工具（本地自用，不入库）=====
+.tools/
+
+# ===== 系统 / 编辑器 =====
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
+*.tmp

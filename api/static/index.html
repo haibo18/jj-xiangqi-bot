@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>皮卡鱼象棋引擎 · 本地接口控制台</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --line:#e3e6ea; --text:#1f2328;
+    --muted:#6b7280; --red:#c0392b; --black:#1f2328; --accent:#2563eb;
+    --green:#0f9d58; --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:26px 22px 60px;}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
+  h1{font-size:20px;margin:0;letter-spacing:.2px;}
+  .badge{font-size:12px;padding:3px 9px;border-radius:999px;background:#eaf2ff;color:#1d4ed8;border:1px solid #d6e4ff;}
+  .badge.ok{background:#e9f7ef;color:#0f9d58;border-color:#cfeadb;}
+  .badge.warn{background:#fff4e5;color:#b45309;border-color:#fbe3c0;}
+  .sub{color:var(--muted);font-size:13px;margin-left:auto;}
+
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:20px;align-items:start;}
+  @media (max-width:880px){ .grid{grid-template-columns:1fr;} }
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .card-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);}
+  .card-head h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.3px;}
+  .card-body{padding:16px;}
+
+  /* 棋盘 */
+  .board-shell{display:flex;justify-content:center;padding:10px 8px 4px;}
+  svg{width:100%;max-width:470px;height:auto;display:block;touch-action:manipulation;}
+  .cell{fill:transparent;}
+  .cell:hover{fill:rgba(37,99,235,.06);}
+
+  /* 控制区 */
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+  .row label{font-size:13px;color:var(--muted);min-width:52px;}
+  input[type=text],input[type=number],select{
+    font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);
+    border-radius:8px;background:#fff;color:var(--text);min-width:0;
+  }
+  input[type=text]:focus,input[type=number]:focus,select:focus{outline:2px solid #bfdbfe;border-color:#93c5fd;}
+  .grow{flex:1;min-width:120px;}
+  button{
+    font:inherit;font-size:13px;padding:8px 15px;border-radius:8px;border:1px solid var(--line);
+    background:#fff;color:var(--text);cursor:pointer;transition:.15s;
+  }
+  button:hover{background:#f7f8fa;border-color:#d5d9df;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  button.primary:hover{background:#1d4ed8;}
+  button.primary:disabled{opacity:.55;cursor:not-allowed;}
+  button.small{padding:5px 10px;font-size:12px;}
+
+  /* 结果 */
+  .best{display:flex;align-items:center;gap:16px;padding:4px 0 14px;}
+  .best-move{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:30px;font-weight:700;letter-spacing:1px;color:var(--accent);
+    line-height:1;padding:10px 14px;border-radius:10px;background:#f0f5ff;border:1px solid #dbe7ff;
+  }
+  .best-meta{font-size:13px;color:var(--muted);line-height:1.7;}
+  .best-meta b{color:var(--text);font-weight:600;}
+  .score-bar{height:8px;border-radius:999px;background:#e9edf3;overflow:hidden;margin:2px 0 14px;}
+  .score-fill{height:100%;width:50%;background:linear-gradient(90deg,#ef9a9a,#c0392b);transition:width .3s;}
+
+  table.lines{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.lines th{text-align:left;color:var(--muted);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--line);font-size:12px;}
+  table.lines td{padding:7px 8px;border-bottom:1px solid #f0f2f5;vertical-align:top;}
+  table.lines tr:last-child td{border-bottom:none;}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  .pv{color:#374151;word-break:break-all;line-height:1.55;}
+  .pos{color:var(--green);font-weight:600;}
+  .neg{color:var(--red);font-weight:600;}
+
+  .moves{font-size:12.5px;color:var(--muted);line-height:1.9;word-break:break-all;max-height:96px;overflow:auto;}
+  .moves .mv{display:inline-block;padding:1px 7px;margin:0 4px 4px 0;border-radius:6px;background:#f2f4f7;color:#374151;font-family:ui-monospace,monospace;}
+
+  .hint{font-size:12px;color:var(--muted);line-height:1.7;}
+  .hint code{background:#f2f4f7;padding:1px 5px;border-radius:4px;font-size:11.5px;}
+  .err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 12px;border-radius:8px;font-size:12.5px;margin-bottom:12px;display:none;}
+  .spin{display:inline-block;width:12px;height:12px;border:2px solid #c7d2fe;border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  pre.curl{background:#0f172a;color:#cbd5e1;padding:12px 14px;border-radius:10px;font-size:11.5px;overflow:auto;margin:10px 0 0;line-height:1.6;}
+  details summary{cursor:pointer;font-size:12.5px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>皮卡鱼象棋引擎</h1>
+    <span class="badge" id="engineBadge">连接中…</span>
+    <span class="badge ok" id="poolBadge">UCI</span>
+    <span class="sub" id="subLine">本地 HTTP 接口</span>
+  </header>
+
+  <div class="grid">
+    <!-- 左：棋盘 -->
+    <div class="card">
+      <div class="card-head">
+        <h2>棋盘</h2>
+        <span class="hint" id="turnLine" style="margin-left:auto"></span>
+      </div>
+      <div class="card-body" style="padding:8px 8px 14px;">
+        <div class="board-shell"><svg id="board" viewBox="0 0 532 590" aria-label="象棋棋盘"></svg></div>
+        <div style="padding:0 8px;">
+          <div class="row" style="margin-bottom:8px;">
+            <label>FEN</label>
+            <input type="text" id="fenInput" class="grow mono" spellcheck="false">
+          </div>
+          <div class="row" style="margin-bottom:0;">
+            <button class="small" id="btnApplyFen">应用局面</button>
+            <button class="small" id="btnUndo">悔棋</button>
+            <button class="small" id="btnReset">重置</button>
+            <button class="small" id="btnCopyFen">复制 FEN</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：分析 -->
+    <div class="card">
+      <div class="card-head">
+        <h2>引擎分析</h2>
+        <span class="hint" id="infoLine" style="margin-left:auto"></span>
+      </div>
+      <div class="card-body">
+        <div class="err" id="errBox"></div>
+
+        <div class="row">
+          <label>限制</label>
+          <select id="modeSel">
+            <option value="depth">深度</option>
+            <option value="movetime">时间(ms)</option>
+          </select>
+          <input type="number" id="limitInput" value="16" min="1" max="60" style="width:92px;">
+          <label style="min-width:auto;">线程</label>
+          <input type="number" id="threadsInput" value="4" min="1" max="64" style="width:68px;">
+          <label style="min-width:auto;">多线</label>
+          <input type="number" id="multipvInput" value="3" min="1" max="8" style="width:58px;">
+        </div>
+        <div class="row">
+          <button class="primary" id="btnAnalyze">开始分析</button>
+          <button id="btnPlay">让引擎走一步</button>
+          <label style="min-width:auto;display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="autoChk" checked> 走子后自动分析
+          </label>
+        </div>
+
+        <div class="best">
+          <div class="best-move" id="bestMove">—</div>
+          <div class="best-meta" id="bestMeta">点击「开始分析」获取引擎建议</div>
+        </div>
+        <div class="score-bar"><div class="score-fill" id="scoreFill"></div></div>
+
+        <table class="lines">
+          <thead><tr><th style="width:34px;">#</th><th style="width:74px;">评分</th><th style="width:44px;">深度</th><th>最佳线路（PV）</th></tr></thead>
+          <tbody id="linesBody"><tr><td colspan="4" class="hint" style="padding:14px 8px;">暂无数据</td></tr></tbody>
+        </table>
+
+        <div style="margin-top:14px;">
+          <div class="hint" style="margin-bottom:6px;">走子记录</div>
+          <div class="moves" id="movesBox"><span class="hint">尚未走子</span></div>
+        </div>
+
+        <details style="margin-top:12px;">
+          <summary>接口调用示例</summary>
+          <pre class="curl" id="curlBox">curl "http://127.0.0.1:8765/api/bestmove?fen=startpos&amp;depth=15"</pre>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CELL = 58, MARGIN = 34;
+const FILES = "abcdefghi";
+const START_FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1";
+const GLYPH = {K:"帥",A:"仕",B:"相",N:"傌",R:"俥",C:"炮",P:"兵",
+               k:"將",a:"士",b:"象",n:"馬",r:"車",c:"砲",p:"卒"};
+
+const state = { baseFen: START_FEN, moves: [], captured: [], grid: [], turn: "w", selected: null, best: null };
+const $ = id => document.getElementById(id);
+const px = i => MARGIN + i * CELL;
+
+/* ---------------- 棋盘绘制 ---------------- */
+function buildBoard() {
+  const svg = $("board");
+  const ns = "http://www.w3.org/2000/svg";
+  svg.innerHTML = "";
+  const add = (tag, attrs) => {
+    const el = document.createElementNS(ns, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    svg.appendChild(el);
+    return el;
+  };
+
+  add("rect", {x:0, y:0, width:532, height:590, fill:"#fbf7ec"});
+  const stroke = {stroke:"#8d7b5f", "stroke-width":1.1, "stroke-linecap":"round"};
+
+  // 横线
+  for (let r = 0; r < 10; r++)
+    add("line", {...stroke, x1:px(0), y1:px(r), x2:px(8), y2:px(r)});
+  // 竖线
+  for (let c = 0; c < 9; c++) {
+    if (c === 0 || c === 8) add("line", {...stroke, x1:px(c), y1:px(0), x2:px(c), y2:px(9)});
+    else {
+      add("line", {...stroke, x1:px(c), y1:px(0), x2:px(c), y2:px(4)});
+      add("line", {...stroke, x1:px(c), y1:px(5), x2:px(c), y2:px(9)});
+    }
+  }
+  // 外框
+  add("rect", {x:px(0)-7, y:px(0)-7, width:px(8)-px(0)+14, height:px(9)-px(0)+14,
+               fill:"none", stroke:"#8d7b5f", "stroke-width":2.2, rx:2});
+  // 九宫斜线
+  [[3,0,5,2],[5,0,3,2],[3,7,5,9],[5,7,3,9]].forEach(([a,b,c,d]) =>
+    add("line", {...stroke, x1:px(a), y1:px(b), x2:px(c), y2:px(d)}));
+  // 楚河汉界
+  const riverY = px(4) + CELL/2;
+  ["楚　河", "漢　界"].forEach((txt, i) => {
+    const t = add("text", {x: px(i === 0 ? 2 : 6), y: riverY + 1, "text-anchor":"middle",
+      "dominant-baseline":"middle", "font-size":22, fill:"#a9916c", "letter-spacing":6,
+      "font-family":"KaiTi,STKaiti,'Kaiti SC',serif"});
+    t.textContent = txt;
+  });
+  // 炮兵位标记
+  const marks = [[1,2],[7,2],[1,7],[7,7],[0,3],[2,3],[4,3],[6,3],[8,3],[0,6],[2,6],[4,6],[6,6],[8,6]];
+  marks.forEach(([c, r]) => {
+    const x = px(c), y = px(r), d = 5, o = 9;
+    const dirs = [[-1,-1],[1,-1],[-1,1],[1,1]];
+    dirs.forEach(([sx, sy]) => {
+      if ((c === 0 && sx === -1) || (c === 8 && sx === 1)) return;
+      add("path", {d:`M${x+sx*o} ${y+sy*o} L${x+sx*o} ${y+sy*(o-d)} M${x+sx*o} ${y+sy*o} L${x+sx*(o-d)} ${y+sy*o}`,
+        stroke:"#a9916c", "stroke-width":1.1, fill:"none"});
+    });
+  });
+
+  // 点击热区
+  const g = document.createElementNS(ns, "g");
+  g.setAttribute("id", "cells");
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+    const rect = document.createElementNS(ns, "rect");
+    rect.setAttribute("x", px(c) - CELL/2); rect.setAttribute("y", px(r) - CELL/2);
+    rect.setAttribute("width", CELL); rect.setAttribute("height", CELL);
+    rect.setAttribute("class", "cell");
+    rect.dataset.col = c; rect.dataset.row = r;
+    rect.addEventListener("click", () => onCellClick(c, r));
+    g.appendChild(rect);
+  }
+  svg.appendChild(g);
+
+  const pieces = document.createElementNS(ns, "g");
+  pieces.setAttribute("id", "pieces");
+  pieces.setAttribute("pointer-events", "none");
+  svg.appendChild(pieces);
+
+  const marks2 = document.createElementNS(ns, "g");
+  marks2.setAttribute("id", "hl");
+  marks2.setAttribute("pointer-events", "none");
+  svg.appendChild(marks2);
+}
+
+function renderPieces() {
+  const ns = "http://www.w3.org/2000/svg";
+  const g = $("pieces");
+  g.innerHTML = "";
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+    const p = state.grid[r] && state.grid[r][c];
+    if (!p) continue;
+    const isRed = p === p.toUpperCase();
+    const x = px(c), y = px(r);
+    const grp = document.createElementNS(ns, "g");
+    grp.innerHTML = `
+      <circle cx="${x}" cy="${y}" r="25" fill="#fffdf6" stroke="${isRed ? "#c0392b" : "#2b2b2b"}" stroke-width="1.6"/>
+      <circle cx="${x}" cy="${y}" r="21" fill="none" stroke="${isRed ? "#e2b1ab" : "#c3c3c3"}" stroke-width="1"/>
+      <text x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle"
+        font-size="25" font-weight="600" font-family="KaiTi,STKaiti,'Kaiti SC',serif"
+        fill="${isRed ? "#c0392b" : "#1f2328"}">${GLYPH[p] || p}</text>`;
+    if (state.selected && state.selected[0] === c && state.selected[1] === r) {
+      grp.innerHTML = `<circle cx="${x}" cy="${y}" r="27" fill="rgba(37,99,235,.14)" stroke="#2563eb" stroke-width="2"/>` + grp.innerHTML;
+    }
+    g.appendChild(grp);
+  }
+  renderHighlights();
+}
+
+function renderHighlights() {
+  const ns = "http://www.w3.org/2000/svg";
+  const g = $("hl");
+  g.innerHTML = "";
+  const clear = () => g.innerHTML = "";
+
+  // 上一步走子：起点空心方框 + 落点实心方框
+  const n = state.moves.length;
+  if (n > 0) {
+    const mv = state.moves[n-1];
+    const from = uciToCR(mv.slice(0,2)), to = uciToCR(mv.slice(2,4));
+    [[from, 16, "none"], [to, 22, "rgba(148,163,184,.22)"]].forEach(([cr, w, fill]) => {
+      const el = document.createElementNS(ns, "rect");
+      el.setAttribute("x", px(cr[0]) - w/2);
+      el.setAttribute("y", px(cr[1]) - w/2);
+      el.setAttribute("width", w); el.setAttribute("height", w);
+      el.setAttribute("rx", 4); el.setAttribute("fill", fill);
+      el.setAttribute("stroke", "#94a3b8"); el.setAttribute("stroke-width", 2);
+      g.appendChild(el);
+    });
+  }
+
+  // 引擎建议箭头
+  if (state.best && state.best.length >= 4) {
+    const a = uciToCR(state.best.slice(0,2)), b = uciToCR(state.best.slice(2,4));
+    const x1 = px(a[0]), y1 = px(a[1]), x2 = px(b[0]), y2 = px(b[1]);
+    const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy) || 1;
+    const ux = dx/len, uy = dy/len, pad = 22;
+    const sx = x1+ux*pad, sy = y1+uy*pad, ex = x2-ux*pad, ey = y2-uy*pad;
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", sx); line.setAttribute("y1", sy);
+    line.setAttribute("x2", ex); line.setAttribute("y2", ey);
+    line.setAttribute("stroke", "#2563eb"); line.setAttribute("stroke-width", 4);
+    line.setAttribute("stroke-linecap", "round"); line.setAttribute("opacity", .72);
+    g.appendChild(line);
+    const ang = Math.atan2(uy, ux), ah = 12, aw = 7;
+    const p1 = `${ex},${ey}`;
+    const p2 = `${ex-ah*Math.cos(ang)+aw*Math.sin(ang)},${ey-ah*Math.sin(ang)-aw*Math.cos(ang)}`;
+    const p3 = `${ex-ah*Math.cos(ang)-aw*Math.sin(ang)},${ey-ah*Math.sin(ang)+aw*Math.cos(ang)}`;
+    const poly = document.createElementNS(ns, "polygon");
+    poly.setAttribute("points", `${p1} ${p2} ${p3}`);
+    poly.setAttribute("fill", "#2563eb"); poly.setAttribute("opacity", .8);
+    g.appendChild(poly);
+  }
+}
+
+/* ---------------- 局面与走子 ---------------- */
+function uciToCR(sq) { return [FILES.indexOf(sq[0]), 9 - parseInt(sq[1], 10)]; }
+function crToUci(c, r) { return FILES[c] + (9 - r); }
+
+function parseFen(fen) {
+  const rows = fen.trim().split(/\s+/)[0].split("/");
+  const grid = [];
+  for (let r = 0; r < 10; r++) {
+    const line = rows[r] || "9";
+    const arr = new Array(9).fill(null);
+    let c = 0;
+    for (const ch of line) {
+      if (/\d/.test(ch)) c += parseInt(ch, 10);
+      else { if (c < 9) arr[c] = ch; c++; }
+    }
+    grid.push(arr);
+  }
+  return grid;
+}
+
+function fenSide(fen) {
+  const p = fen.trim().split(/\s+/);
+  return (p[1] || "w").toLowerCase() === "b" ? "b" : "w";
+}
+
+function setPosition(fen, resetMoves = true) {
+  state.baseFen = fen.trim() || START_FEN;
+  state.grid = parseFen(state.baseFen);
+  state.turn = fenSide(state.baseFen);
+  if (resetMoves) { state.moves = []; state.captured = []; }
+  state.selected = null; state.best = null;
+  $("fenInput").value = state.baseFen;
+  afterPositionChange();
+}
+
+function afterPositionChange() {
+  renderPieces();
+  $("turnLine").textContent = state.turn === "w" ? "● 轮到红方" : "○ 轮到黑方";
+  $("turnLine").style.color = state.turn === "w" ? "#c0392b" : "#4b5563";
+  const box = $("movesBox");
+  box.innerHTML = state.moves.length
+    ? state.moves.map((m,i) => `<span class="mv">${i+1}.${m}</span>`).join("")
+    : '<span class="hint">尚未走子</span>';
+  box.scrollTop = box.scrollHeight;
+  updateCurl();
+}
+
+function onCellClick(c, r) {
+  const piece = state.grid[r][c];
+  if (state.selected) {
+    const [sc, sr] = state.selected;
+    if (sc === c && sr === r) { state.selected = null; renderPieces(); return; }
+    // 目标格有自己的子 → 改选
+    if (piece && (piece === piece.toUpperCase()) === (state.turn === "w")) {
+      state.selected = [c, r]; renderPieces(); return;
+    }
+    applyMove(crToUci(sc, sr) + crToUci(c, r));
+    return;
+  }
+  if (piece && (piece === piece.toUpperCase()) === (state.turn === "w")) {
+    state.selected = [c, r];
+    renderPieces();
+  }
+}
+
+function applyMove(uci) {
+  const [fc, fr] = uciToCR(uci.slice(0,2));
+  const [tc, tr] = uciToCR(uci.slice(2,4));
+  const piece = state.grid[fr][fc];
+  if (!piece) return;
+  state.captured.push(state.grid[tr][tc] || null);
+  state.grid[tr][tc] = piece;
+  state.grid[fr][fc] = null;
+  state.moves.push(uci);
+  state.turn = state.turn === "w" ? "b" : "w";
+  state.selected = null;
+  state.best = null;
+  afterPositionChange();
+  if ($("autoChk").checked) analyze(false);
+}
+
+/* ---------------- 调用接口 ---------------- */
+const fmtScore = (line) => {
+  if (!line || !line.score) return "—";
+  if (line.mate !== null && line.mate !== undefined)
+    return `绝杀 ${line.mate > 0 ? "+" : ""}${line.mate}`;
+  const cp = line.cp ?? 0;
+  return (cp > 0 ? "+" : "") + (cp / 100).toFixed(2);
+};
+const scoreClass = (v) => (v >= 0 ? "pos" : "neg");
+
+function showError(msg) {
+  const box = $("errBox");
+  if (!msg) { box.style.display = "none"; box.textContent = ""; return; }
+  box.style.display = "block"; box.textContent = msg;
+}
+
+function buildRequest() {
+  const mode = $("modeSel").value;
+  const limit = parseInt($("limitInput").value, 10);
+  const body = {
+    fen: state.baseFen,
+    moves: state.moves,
+    multipv: parseInt($("multipvInput").value, 10) || 1,
+    threads: parseInt($("threadsInput").value, 10) || 1,
+  };
+  if (mode === "depth") body.depth = Math.min(60, Math.max(1, limit || 14));
+  else body.movetime = Math.min(600000, Math.max(50, limit || 1500));
+  return body;
+}
+
+async function analyze(auto = false) {
+  const btn = $("btnAnalyze");
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.innerHTML = '<span class="spin"></span> 分析中';
+  showError(null);
+  try {
+    const body = buildRequest();
+    const res = await fetch("/api/analyze", {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    renderResult(data);
+  } catch (e) {
+    showError("分析失败：" + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+    if (auto) $("infoLine").textContent = "自动分析完成";
+  }
+}
+
+function renderResult(data) {
+  const best = data.bestmove;
+  state.best = best || null;
+  $("bestMove").textContent = best || "无着法";
+  const top = data.lines && data.lines[0];
+  const eng = data.engine || {};
+  $("bestMeta").innerHTML = best
+    ? `深度 <b>${data.depth ?? "-"}</b> · 节点 <b>${(data.nodes ?? 0).toLocaleString()}</b>
+       · 速度 <b>${Math.round((data.nps ?? 0)/1000).toLocaleString()}k</b> nps
+       · 耗时 <b>${((data.time_ms ?? 0)/1000).toFixed(2)}s</b><br>
+       ${eng.name || ""} · ${eng.threads} 线程 · Hash ${eng.hash}MB`
+    : "当前局面已无合法着法（将死或困毙）";
+
+  // 评分条
+  const fill = $("scoreFill");
+  if (top && top.cp !== null && top.cp !== undefined) {
+    const pct = 50 + Math.max(-50, Math.min(50, top.cp / 20));
+    fill.style.width = pct + "%";
+  } else if (top && top.mate) {
+    fill.style.width = top.mate > 0 ? "100%" : "0%";
+  } else fill.style.width = "50%";
+
+  // 多线路
+  const tb = $("linesBody");
+  if (!data.lines || !data.lines.length) {
+    tb.innerHTML = '<tr><td colspan="4" class="hint" style="padding:14px 8px;">无搜索结果</td></tr>';
+  } else {
+    tb.innerHTML = data.lines.map(l => {
+      const s = fmtScore(l);
+      return `<tr>
+        <td class="mono" style="color:#6b7280">${l.rank}</td>
+        <td class="mono ${scoreClass(l.cp ?? (l.mate>0?1:-1) ?? 0)}">${s}</td>
+        <td class="mono">${l.depth ?? "-"}</td>
+        <td class="pv mono">${(l.pv || []).join(" ") || "—"}</td>
+      </tr>`;
+    }).join("");
+  }
+  $("infoLine").textContent = `multipv ${data.lines?.length || 0}`;
+  renderPieces();
+  updateCurl();
+}
+
+function updateCurl() {
+  const body = buildRequest();
+  const q = new URLSearchParams({fen: body.fen, moves: body.moves.join(","),
+    multipv: body.multipv, threads: body.threads});
+  if (body.depth) q.set("depth", body.depth); else q.set("movetime", body.movetime);
+  const url = `${location.origin}/api/bestmove?${q.toString()}`;
+  $("curlBox").textContent = `curl "${url}"`;
+}
+
+/* ---------------- 交互绑定 ---------------- */
+function bindUI() {
+  $("btnAnalyze").addEventListener("click", () => analyze());
+  $("btnPlay").addEventListener("click", async () => {
+    await analyze();
+    if (state.best) setTimeout(() => applyMove(state.best), 120);
+  });
+  $("btnUndo").addEventListener("click", () => {
+    if (!state.moves.length) return;
+    const last = state.moves.pop();
+    const captured = state.captured.pop();
+    const [fc, fr] = uciToCR(last.slice(0,2));
+    const [tc, tr] = uciToCR(last.slice(2,4));
+    state.grid[fr][fc] = state.grid[tr][tc];
+    state.grid[tr][tc] = captured || null;
+    state.turn = state.turn === "w" ? "b" : "w";
+    state.best = null; state.selected = null;
+    afterPositionChange();
+  });
+  $("btnReset").addEventListener("click", () => { setPosition(START_FEN); $("linesBody").innerHTML = '<tr><td colspan="4" class="hint" style="padding:14px 8px;">暂无数据</td></tr>'; $("bestMove").textContent = "—"; $("bestMeta").textContent = "点击「开始分析」获取引擎建议"; });
+  $("btnApplyFen").addEventListener("click", () => {
+    try { setPosition($("fenInput").value); showError(null); }
+    catch (e) { showError("FEN 解析失败：" + e.message); }
+  });
+  $("btnCopyFen").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("fenInput").value); $("btnCopyFen").textContent = "已复制"; setTimeout(()=>$("btnCopyFen").textContent="复制 FEN", 1200); } catch {}
+  });
+  $("modeSel").addEventListener("change", () => {
+    const depth = $("modeSel").value === "depth";
+    $("limitInput").value = depth ? 16 : 1500;
+    $("limitInput").max = depth ? 60 : 600000;
+    updateCurl();
+  });
+  ["limitInput","threadsInput","multipvInput"].forEach(id => $(id).addEventListener("change", updateCurl));
+  window.addEventListener("keydown", e => {
+    if (e.key === "Enter" && (e.target.id === "fenInput" || e.target.id === "limitInput")) {
+      if (e.target.id === "fenInput") $("btnApplyFen").click(); else analyze();
+    }
+  });
+}
+
+async function loadHealth() {
+  try {
+    const r = await fetch("/api/health");
+    const d = await r.json();
+    $("engineBadge").textContent = d.engine?.name || "Pikafish";
+    $("engineBadge").className = "badge ok";
+    $("poolBadge").textContent = `${d.pool?.instances || 1} 实例 · ${d.pool?.base_options?.Threads || 1} 线程`;
+    $("subLine").textContent = `本地 HTTP 接口 · v${d.version}`;
+    if (d.pool?.base_options?.Threads) $("threadsInput").value = d.pool.base_options.Threads;
+  } catch (e) {
+    $("engineBadge").textContent = "接口连接失败";
+    $("engineBadge").className = "badge warn";
+  }
+}
+
+buildBoard();
+bindUI();
+setPosition(START_FEN);
+loadHealth();
+</script>
+</body>
+</html>
